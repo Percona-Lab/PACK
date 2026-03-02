@@ -123,7 +123,7 @@ Do not call memory_get at the start of every conversation — only when context 
 
 After each `memory_update`, content can be automatically synced to Google Docs and/or Notion. Sync is 1-way (GitHub → targets), non-blocking, and failures never break the memory update.
 
-This makes your memory readable in a browser and accessible to other AI tools like Gemini and ChatGPT.
+This makes your memory portable across AI tools beyond MCP — sync to Google Docs and attach it as a knowledge source in a [Gemini Gem](https://gemini.google.com/gems), or sync to Notion and reference it from a [ChatGPT custom GPT](https://openai.com/index/introducing-gpts/) with web browsing enabled.
 
 ### Notion sync
 
