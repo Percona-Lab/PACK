@@ -4,6 +4,8 @@ A standalone [MCP](https://modelcontextprotocol.io/) server that gives any AI to
 
 Works with Claude Desktop, Open WebUI, Cursor, Windsurf, and any MCP-compatible client.
 
+> 100% vibe coded with [Claude](https://claude.ai/).
+
 ## What it does
 
 PACK exposes two tools over MCP:
@@ -17,11 +19,19 @@ Memory is stored in a GitHub repo you control. Updates use SHA-based optimistic 
 
 ### 1. Create a memory repo
 
-Create a **private** GitHub repo (e.g. `ai-memory`) to store your memory file. The first `memory_update` call creates the file automatically.
+Create a **private** GitHub repo named `ai-memory-yourname` (e.g. `ai-memory-dennis`, `ai-memory-sarah`). The first `memory_update` call creates the `MEMORY.md` file automatically.
 
-Generate a [fine-grained personal access token](https://github.com/settings/tokens?type=beta) scoped to that repo with **Contents → Read and write**.
+> **Privacy notice**: Your memory file will accumulate sensitive context over time — meeting notes, project details, personal preferences, etc. To protect your data:
+>
+> 1. **Always create the repo as Private** — never public or internal.
+> 2. **If using a GitHub org, request that an admin restrict the repo to your account only** — by default, org owners and admins can see all repos, even private ones. Ask an admin to limit collaborator access to just you.
+> 3. **Do not store secrets** (passwords, API tokens, credentials) in your memory file. Treat it as sensitive but not secret.
 
-### 2. Install
+Generate a [fine-grained personal access token](https://github.com/settings/tokens?type=beta) with:
+- **Repository access**: Only select your `ai-memory-yourname` repo
+- **Permissions**: Contents → Read and write
+
+### 2. Install PACK
 
 ```bash
 git clone https://github.com/Percona-Lab/pack.git
@@ -31,12 +41,12 @@ npm install
 
 ### 3. Configure
 
-Create `~/.pack.env`:
+Create `~/.pack.env` (outside the repo for security):
 
 ```bash
 GITHUB_TOKEN=ghp_...              # Fine-grained PAT
 GITHUB_OWNER=your-username        # GitHub user or org
-GITHUB_REPO=ai-memory             # Your private memory repo
+GITHUB_REPO=ai-memory-yourname    # Your private memory repo
 GITHUB_MEMORY_PATH=MEMORY.md      # File path (default: MEMORY.md)
 ```
 
@@ -124,7 +134,7 @@ NOTION_TOKEN=ntn_...
 NOTION_SYNC_PAGE_ID=abcdef1234567890  # Page to overwrite with memory content
 ```
 
-Create a dedicated Notion page for this — its content will be replaced on each update.
+Create a **dedicated, private** Notion page for this — its content will be replaced on each update. Do not use a page that is shared with others unless you want them to see your memory.
 
 ### Google Docs sync
 
@@ -144,6 +154,8 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
 GOOGLE_REFRESH_TOKEN=1//0eXXXX...
 ```
+
+> **Privacy reminder**: Keep the Google Doc restricted to your account only. Do not share the document link — anyone with access can read your full memory.
 
 ### Sync behavior
 
