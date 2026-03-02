@@ -121,11 +121,49 @@ Do not call memory_get at the start of every conversation — only when context 
 
 ## Sync (optional)
 
-After each `memory_update`, content can be automatically synced to Google Docs and/or Notion. Sync is 1-way (GitHub → targets), non-blocking, and failures never break the memory update.
+After each `memory_update`, content can be automatically synced to external targets. Sync is 1-way (GitHub → targets), non-blocking, and failures never break the memory update.
 
 This makes your memory portable across AI tools beyond MCP — sync to Google Docs and attach it as a knowledge source in a [Gemini Gem](https://gemini.google.com/gems), or sync to Notion and reference it from a [ChatGPT custom GPT](https://openai.com/index/introducing-gpts/) with web browsing enabled.
 
-### Notion sync
+PACK supports two sync methods that can be used together, separately, or not at all:
+
+- **Webhook** — POST memory content to any URL (n8n, Zapier, Make, custom endpoint). Most flexible — add any number of targets without changing PACK code.
+- **Built-in connectors** — Direct sync to Notion and Google Docs. No external infra needed.
+
+### Webhook sync (recommended)
+
+Set a webhook URL and PACK will POST the full memory content after every update:
+
+```bash
+# Add to ~/.pack.env
+PACK_WEBHOOK_URL=https://your-n8n.example.com/webhook/pack-sync
+```
+
+The webhook receives a JSON payload:
+
+```json
+{
+  "event": "memory_update",
+  "content": "# My Memory\n\n- Full markdown content...",
+  "message": "Update memory",
+  "repo": "your-username/ai-memory-yourname",
+  "sha": "abc123...",
+  "commit_url": "https://github.com/...",
+  "timestamp": "2026-03-02T12:00:00.000Z"
+}
+```
+
+With a workflow tool like [n8n](https://n8n.io/), you can fan out to any number of targets — Notion, Google Docs, Confluence, Slack, email — without touching PACK code. Example n8n workflow:
+
+```
+Webhook trigger → Switch node
+  ├─ Notion: update page with content
+  ├─ Google Docs: replace document body
+  ├─ Slack: post to #memory-updates channel
+  └─ S3: archive a timestamped backup
+```
+
+### Notion sync (built-in)
 
 Add to `~/.pack.env`:
 
@@ -136,7 +174,7 @@ NOTION_SYNC_PAGE_ID=abcdef1234567890  # Page to overwrite with memory content
 
 Create a **dedicated, private** Notion page for this — its content will be replaced on each update. Do not use a page that is shared with others unless you want them to see your memory.
 
-### Google Docs sync
+### Google Docs sync (built-in)
 
 **Step 1:** Create OAuth credentials at [Google Cloud Console](https://console.cloud.google.com/) → enable Google Docs API → create OAuth client ID (Desktop app).
 
@@ -159,9 +197,9 @@ GOOGLE_REFRESH_TOKEN=1//0eXXXX...
 
 ### Sync behavior
 
-- Both targets are optional and independent — configure one, both, or neither
-- Sync runs in the background after GitHub write succeeds
-- Failures are logged to stderr but don't affect the `memory_update` response
+- All sync methods are optional, independent, and can be combined
+- Webhook and built-in connectors run in parallel after GitHub write succeeds
+- Failures are logged to stderr but never affect the `memory_update` response
 - Google Docs receives plain markdown text
 - Notion receives structured blocks (headings, bullets, code blocks)
 
