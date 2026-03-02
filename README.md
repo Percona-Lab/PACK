@@ -34,7 +34,7 @@ Generate a [fine-grained personal access token](https://github.com/settings/toke
 ### 2. Install PACK
 
 ```bash
-git clone https://github.com/Percona-Lab/pack.git
+git clone https://github.com/Percona-Lab/PACK.git
 cd pack
 npm install
 ```
