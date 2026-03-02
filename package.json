@@ -1,0 +1,31 @@
+{
+  "name": "pack-mcp",
+  "version": "1.0.0",
+  "description": "PACK - Portable Agent Context Keeper. A standalone MCP server for persistent AI memory backed by GitHub.",
+  "type": "module",
+  "main": "servers/memory.js",
+  "bin": {
+    "pack": "./servers/memory.js"
+  },
+  "scripts": {
+    "start": "node servers/memory.js",
+    "start:http": "node servers/memory.js --http",
+    "google-auth": "node scripts/google-auth.js"
+  },
+  "keywords": [
+    "mcp",
+    "memory",
+    "ai",
+    "context",
+    "github",
+    "model-context-protocol"
+  ],
+  "author": "Percona Lab",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "dotenv": "^16.4.7",
+    "googleapis": "^171.4.0",
+    "node-fetch": "^3.3.2"
+  }
+}

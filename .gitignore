@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Secrets
+.env
+.env.*
+credentials.json
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
