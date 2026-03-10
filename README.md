@@ -94,25 +94,40 @@ Add to your MCP config:
 2. In Open WebUI: **Settings → Tools → MCP Servers**
 3. Add: Type **Streamable HTTP**, URL `http://host.docker.internal:3005/mcp`
 
-### System prompt (critical)
+## Suggested system prompt
 
-> **Warning**: Without this system prompt, models may overwrite your entire memory file instead of merging changes. Always add this prompt to your AI client.
->
-> - **Open WebUI**: Settings → General → System Prompt
-> - **Claude Desktop**: Add to your project's custom instructions
-> - **Cursor / Windsurf**: Add to your rules or system prompt settings
-
-The prompt teaches the model to read-before-write and merge, which prevents data loss:
+Add this to your AI client's system prompt (or custom instructions) so it knows how to use PACK:
 
 ```
-You have access to persistent memory via pack (memory_get / memory_update).
-- Use memory_get when you need context from previous sessions, or the user asks "what do you know"
-- Use memory_update when the user says "remember this", "save this", or asks you to store any information — this is the user's personal memory and they decide what goes in it
-- CRITICAL: Before EVERY memory_update, you MUST call memory_get first. The memory file may contain important content from other sessions. Read it, merge your changes into the existing content, then write the complete updated markdown. Never overwrite blindly.
-- Keep memory organized with ## headings and bullet points
-At the start of every conversation:
-- Call memory_get to load persistent memory
+You have access to persistent memory tools: memory_get and memory_update.
+
+Use memory_get when:
+- The user says "what do you know about me" or asks for context from previous conversations
+- The user references something you should already know
+- You need background on a project, preference, or decision
+
+Use memory_update when:
+- The user says "remember this", "save this", or "update memory"
+- The user shares important context they'll want you to recall later
+
+When updating memory:
+1. Always call memory_get first to fetch the current content
+2. Merge new information into the existing markdown — never overwrite from scratch
+3. Call memory_update with the complete updated markdown
+4. Use clear ## headings and bullet points to keep it organized
+
+Do not call memory_get at the start of every conversation — only when context is needed.
 ```
+
+### Optional: eager loading
+
+If you want memory loaded at the start of **every** conversation, add this line to your system prompt:
+
+```
+At the start of every conversation, call memory_get to load persistent memory.
+```
+
+This ensures context is always available but uses more tokens per conversation. The default (on-demand) approach is more efficient when prior context isn't always needed.
 
 ## Sync (optional)
 
