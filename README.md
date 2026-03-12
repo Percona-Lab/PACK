@@ -116,6 +116,10 @@ When updating memory:
 3. Call memory_update with the complete updated markdown
 4. Use clear ## headings and bullet points to keep it organized
 
+When drafting any communication on the user's behalf, check memory for a
+"## MYNAH Profiles" section. If present, match the user's stored writing style
+for the relevant context.
+
 Do not call memory_get at the start of every conversation — only when context is needed.
 ```
 
@@ -128,6 +132,23 @@ At the start of every conversation, call memory_get to load persistent memory.
 ```
 
 This ensures context is always available but uses more tokens per conversation. The default (on-demand) approach is more efficient when prior context isn't always needed.
+
+### Writing in your voice
+
+PACK works with [MYNAH](https://github.com/Percona-Lab/MYNAH) (My Natural Authoring Helper), a Claude plugin that learns how you write and stores style profiles in your PACK memory under `## MYNAH Profiles`.
+
+Once profiles exist in memory, any Claude session with PACK access can use them when drafting messages on your behalf. Add this to the suggested system prompt above:
+
+```
+When drafting any communication on the user's behalf (Slack messages, emails,
+docs, etc.), call memory_get and check for a "## MYNAH Profiles" section. If
+it exists, match the user's style for the relevant context (e.g., slack-dm-tech,
+email-external). This ensures messages sound like the user, not like a generic AI.
+```
+
+This works in any Claude interface connected to PACK: Claude Desktop, Cowork, Claude Code, Cursor, Open WebUI, or plain claude.ai chat.
+
+For the full experience, install the [MYNAH plugin](https://github.com/Percona-Lab/MYNAH), which adds systematic training (LEARN mode) and context-aware composition (COMPOSE mode). Without the plugin, Claude still uses your stored profiles when writing on your behalf. It just won't have the structured training workflow to build or update them.
 
 ## Sync (optional)
 
