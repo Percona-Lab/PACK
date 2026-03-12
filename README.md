@@ -120,6 +120,10 @@ When drafting any communication on the user's behalf, check memory for a
 "## MYNAH Profiles" section. If present, match the user's stored writing style
 for the relevant context.
 
+When creating or reformatting Notion pages, check memory for a
+"## NOTION Design Profiles" section. If present, apply the user's stored
+design preferences (colors, patterns, layout density) instead of defaults.
+
 Do not call memory_get at the start of every conversation — only when context is needed.
 ```
 
@@ -149,6 +153,20 @@ email-external). This ensures messages sound like the user, not like a generic A
 This works in any Claude interface connected to PACK: Claude Desktop, Cowork, Claude Code, Cursor, Open WebUI, or plain claude.ai chat.
 
 For the full experience, install the [MYNAH plugin](https://github.com/Percona-Lab/MYNAH), which adds systematic training (LEARN mode) and context-aware composition (COMPOSE mode). Without the plugin, Claude still uses your stored profiles when writing on your behalf. It just won't have the structured training workflow to build or update them.
+
+### Formatting Notion pages
+
+PACK also works with [BINER](https://github.com/Percona-Lab/BINER) (Beautiful Intelligent Notion Enhancement & Reformatting), a Claude plugin that learns your Notion design preferences and stores them in PACK memory under `## NOTION Design Profiles`.
+
+Once a design profile exists, any Claude session with PACK access can apply your preferred formatting when creating or beautifying Notion pages. Add this to the suggested system prompt above:
+
+```
+When creating or reformatting Notion pages, call memory_get and check for a
+"## NOTION Design Profiles" section. If present, apply the user's stored design
+preferences (colors, patterns, layout density) instead of generic defaults.
+```
+
+For the full experience, install the [BINER plugin](https://github.com/Percona-Lab/BINER), which adds the complete design system, LEARN mode (train from sample pages), and BEAUTIFY mode (reformat existing pages). Without the plugin, Claude still applies your stored design preferences when formatting Notion pages.
 
 ## Sync (optional)
 
