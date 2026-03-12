@@ -137,36 +137,28 @@ At the start of every conversation, call memory_get to load persistent memory.
 
 This ensures context is always available but uses more tokens per conversation. The default (on-demand) approach is more efficient when prior context isn't always needed.
 
-### Writing in your voice
+### Train once, use everywhere
 
-PACK works with [MYNAH](https://github.com/Percona-Lab/MYNAH) (My Natural Authoring Helper), a Claude plugin that learns how you write and stores style profiles in your PACK memory under `## MYNAH Profiles`.
+PACK stores profiles for two companion plugins. Train them once in Claude Code or Cowork (where plugins are supported), and every AI client connected to PACK can use the results, even clients that don't support plugins.
 
-Once profiles exist in memory, any Claude session with PACK access can use them when drafting messages on your behalf. Add this to the suggested system prompt above:
+**[MYNAH](https://github.com/Percona-Lab/MYNAH)** (My Natural Authoring Helper) learns how you write and stores style profiles in PACK memory under `## MYNAH Profiles`. **[BINER](https://github.com/Percona-Lab/BINER)** (Beautiful Intelligent Notion Enhancement & Reformatting) learns your Notion design preferences and stores them under `## NOTION Design Profiles`.
+
+**In Cowork and Claude Code**, install the plugins and everything works automatically. The plugins handle training, storage, and composition with no system prompt changes needed.
+
+**In Claude Desktop, Cursor, Open WebUI, and other MCP clients**, plugins aren't available, but PACK is. Add these lines to the suggested system prompt above so the AI knows to use your stored profiles:
 
 ```
 When drafting any communication on the user's behalf (Slack messages, emails,
 docs, etc.), call memory_get and check for a "## MYNAH Profiles" section. If
 it exists, match the user's style for the relevant context (e.g., slack-dm-tech,
 email-external). This ensures messages sound like the user, not like a generic AI.
-```
 
-This works in any Claude interface connected to PACK: Claude Desktop, Cowork, Claude Code, Cursor, Open WebUI, or plain claude.ai chat.
-
-For the full experience, install the [MYNAH plugin](https://github.com/Percona-Lab/MYNAH), which adds systematic training (LEARN mode) and context-aware composition (COMPOSE mode). Without the plugin, Claude still uses your stored profiles when writing on your behalf. It just won't have the structured training workflow to build or update them.
-
-### Formatting Notion pages
-
-PACK also works with [BINER](https://github.com/Percona-Lab/BINER) (Beautiful Intelligent Notion Enhancement & Reformatting), a Claude plugin that learns your Notion design preferences and stores them in PACK memory under `## NOTION Design Profiles`.
-
-Once a design profile exists, any Claude session with PACK access can apply your preferred formatting when creating or beautifying Notion pages. Add this to the suggested system prompt above:
-
-```
 When creating or reformatting Notion pages, call memory_get and check for a
 "## NOTION Design Profiles" section. If present, apply the user's stored design
 preferences (colors, patterns, layout density) instead of generic defaults.
 ```
 
-For the full experience, install the [BINER plugin](https://github.com/Percona-Lab/BINER), which adds the complete design system, LEARN mode (train from sample pages), and BEAUTIFY mode (reformat existing pages). Without the plugin, Claude still applies your stored design preferences when formatting Notion pages.
+This gives you writing style matching and Notion formatting in any MCP-compatible client. The only difference is that without the plugins, you won't have the structured LEARN mode to train or update profiles. You'd do that in Cowork or Claude Code, and the results carry over everywhere.
 
 ## Sync (optional)
 
