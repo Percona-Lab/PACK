@@ -19,7 +19,17 @@ Memory is stored as markdown files with YAML frontmatter in a GitHub repo you co
 
 PACK also ships a CLI (`pack`) for direct human access to memory outside of agent sessions.
 
-> **Upgrading from v1?** PACK v2 is fully backward compatible. Your existing single-file memory works without changes. Migrate when ready with `pack migrate`. See [DESIGN.md](DESIGN.md) for details.
+## Why directory mode
+
+PACK stores memory as a directory of small files instead of one large file. This matters because every token of memory loaded into a conversation costs money and uses up context window space.
+
+**Single-file approach (v1)**: Load the entire memory (~8,000+ tokens) at session start. Read it again before every write to merge changes. As memory grows, so does the cost of every session.
+
+**Directory approach (v2)**: Load a lightweight index (~700 tokens) at session start. Read only the specific files you need (~350 tokens each). Write directly — no read-before-write merge required.
+
+For a typical session with one memory update, this reduces memory-related token usage by **~94%** (from ~17,000 tokens to ~1,000). The savings compound as memory grows — v2 cost stays flat regardless of total memory size.
+
+> **Upgrading from v1?** PACK v2 is fully backward compatible. Your existing single-file memory works without changes. Migrate when ready with `pack migrate`. See [Migrating from v1](#migrating-from-v1).
 
 ## Setup
 
@@ -130,8 +140,6 @@ Add to your MCP config:
 > - **Claude Desktop**: Add to your project's custom instructions
 > - **Cursor / Windsurf**: Add to your rules or system prompt settings
 
-### v2 prompt (recommended for new users and after `pack migrate`)
-
 ```
 You have access to persistent memory via pack (memory_list / memory_get / memory_update / memory_search).
 - Call memory_list at the start of every conversation to load the memory index
@@ -139,18 +147,6 @@ You have access to persistent memory via pack (memory_list / memory_get / memory
 - Call memory_update with a file path and content to save information — this is the user's personal memory and they decide what goes in it
 - Call memory_search with keywords to find information across all memory files
 - Each file is independent — no need to merge with other files when updating
-```
-
-### v1 prompt (single file mode — still supported)
-
-```
-You have access to persistent memory via pack (memory_get / memory_update).
-- Use memory_get when you need context from previous sessions, or the user asks "what do you know"
-- Use memory_update when the user says "remember this", "save this", or asks you to store any information — this is the user's personal memory and they decide what goes in it
-- CRITICAL: Before EVERY memory_update, you MUST call memory_get first. The memory file may contain important content from other sessions. Read it, merge your changes into the existing content, then write the complete updated markdown. Never overwrite blindly.
-- Keep memory organized with ## headings and bullet points
-At the start of every conversation:
-- Call memory_get to load persistent memory
 ```
 
 ### Train once, use everywhere
