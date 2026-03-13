@@ -141,7 +141,7 @@ async function verify() {
   // Test 5: All headings became files
   const tree = await github.getTree();
   const mdFiles = tree.filter(f =>
-    f.path.endsWith('.md') && f.path !== 'index.md' && !f.path.startsWith('legacy/')
+    f.path.endsWith('.md') && f.path !== 'index.md' && !f.path.startsWith('legacy/') && f.path.includes('/')
   );
   check('File count matches heading count', mdFiles.length === baseline.headingCount,
     `${mdFiles.length} files vs ${baseline.headingCount} headings`);

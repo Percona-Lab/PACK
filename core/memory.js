@@ -16,6 +16,17 @@ export class MemoryCore {
   }
 
   /**
+   * Filter tree entries to only v2 memory files.
+   * Excludes index.md, legacy/, and root-level files without directories.
+   */
+  _isV2MemoryFile(f) {
+    return f.path.endsWith('.md') &&
+      f.path !== 'index.md' &&
+      !f.path.startsWith('legacy/') &&
+      f.path.includes('/');
+  }
+
+  /**
    * Detect v1 vs v2 mode. Cached for 60s, invalidated on writes.
    * Per-request detection per Contract C2.
    */
@@ -104,7 +115,7 @@ export class MemoryCore {
     const syncOrder = parseSyncOrder(index.content);
     const tree = await this.connector.getTree();
     const allPaths = syncOrder.length > 0 ? syncOrder : tree
-      .filter(f => f.path.endsWith('.md') && f.path !== 'index.md' && !f.path.startsWith('legacy/'))
+      .filter(f => this._isV2MemoryFile(f))
       .map(f => f.path)
       .sort();
 
@@ -417,7 +428,7 @@ export class MemoryCore {
 
     const tree = await this.connector.getTree();
     const mdFiles = tree.filter(f =>
-      f.path.endsWith('.md') && f.path !== 'index.md' && !f.path.startsWith('legacy/')
+      this._isV2MemoryFile(f)
     );
 
     const allErrors = [];
@@ -475,7 +486,7 @@ export class MemoryCore {
     }
 
     const mdFiles = tree.filter(f =>
-      f.path.endsWith('.md') && f.path !== 'index.md' && !f.path.startsWith('legacy/')
+      this._isV2MemoryFile(f)
     );
 
     const dirs = {};
