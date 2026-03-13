@@ -1,6 +1,7 @@
 /**
  * Orchestrates optional 1-way sync from GitHub memory to Google Docs and/or Notion.
  * Sync is non-blocking — failures are logged but never propagate to the caller.
+ * Contract C3: downstream connectors always receive a single markdown string.
  */
 
 export class MemorySyncManager {
@@ -42,6 +43,7 @@ export class MemorySyncManager {
   /**
    * Fire-and-forget sync to all configured targets.
    * Each target is independent — one failure doesn't affect the other.
+   * @param {string} content - Single markdown string (v1 or v2 concatenated)
    */
   async sync(content) {
     const promises = [];

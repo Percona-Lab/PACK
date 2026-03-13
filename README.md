@@ -1,6 +1,6 @@
 # PACK — Portable Agent Context Keeper
 
-A standalone [MCP](https://modelcontextprotocol.io/) server that gives any AI tool persistent memory — stored as a markdown file in a private GitHub repo.
+A standalone [MCP](https://modelcontextprotocol.io/) server that gives any AI tool persistent memory — stored as markdown files in a private GitHub repo.
 
 Works with Claude Desktop, Open WebUI, Cursor, Windsurf, and any MCP-compatible client.
 
@@ -8,12 +8,18 @@ Works with Claude Desktop, Open WebUI, Cursor, Windsurf, and any MCP-compatible 
 
 ## What it does
 
-PACK exposes two tools over MCP:
+PACK exposes four tools over MCP:
 
-- **`memory_get`** — Read the current memory (markdown).
-- **`memory_update`** — Replace memory with new content. Each update is a git commit with full version history.
+- **`memory_list`** — List memory files with optional filtering. Call at session start.
+- **`memory_get`** — Read a specific memory file (or all memory concatenated).
+- **`memory_update`** — Write a memory file. Each update is a git commit with full version history.
+- **`memory_search`** — Search across all memory files by content or frontmatter.
 
-Memory is stored in a GitHub repo you control. Updates use SHA-based optimistic concurrency to prevent race conditions. Optional 1-way sync pushes memory to Google Docs and/or Notion for browser access.
+Memory is stored as markdown files with YAML frontmatter in a GitHub repo you control. Updates use SHA-based optimistic concurrency to prevent race conditions. Optional 1-way sync pushes memory to Google Docs and/or Notion for browser access.
+
+PACK also ships a CLI (`pack`) for direct human access to memory outside of agent sessions.
+
+> **Upgrading from v1?** PACK v2 is fully backward compatible. Your existing single-file memory works without changes. Migrate when ready with `pack migrate`. See [DESIGN.md](DESIGN.md) for details.
 
 ## Setup
 
@@ -94,48 +100,36 @@ Add to your MCP config:
 2. In Open WebUI: **Settings → Tools → MCP Servers**
 3. Add: Type **Streamable HTTP**, URL `http://host.docker.internal:3005/mcp`
 
-## Suggested system prompt
+## System prompt (critical)
 
-Add this to your AI client's system prompt (or custom instructions) so it knows how to use PACK:
+> **Warning**: Without this system prompt, models may overwrite your entire memory file instead of merging changes. Always add this prompt to your AI client.
+>
+> - **Open WebUI**: Settings > General > System Prompt
+> - **Claude Desktop**: Add to your project's custom instructions
+> - **Cursor / Windsurf**: Add to your rules or system prompt settings
 
-```
-You have access to persistent memory tools: memory_get and memory_update.
-
-Use memory_get when:
-- The user says "what do you know about me" or asks for context from previous conversations
-- The user references something you should already know
-- You need background on a project, preference, or decision
-
-Use memory_update when:
-- The user says "remember this", "save this", or "update memory"
-- The user shares important context they'll want you to recall later
-
-When updating memory:
-1. Always call memory_get first to fetch the current content
-2. Merge new information into the existing markdown — never overwrite from scratch
-3. Call memory_update with the complete updated markdown
-4. Use clear ## headings and bullet points to keep it organized
-
-When drafting any communication on the user's behalf, check memory for a
-"## MYNAH Profiles" section. If present, match the user's stored writing style
-for the relevant context.
-
-When creating or reformatting Notion pages, check memory for a
-"## NOTION Design Profiles" section. If present, apply the user's stored
-design preferences (colors, patterns, layout density) instead of defaults.
-
-Do not call memory_get at the start of every conversation — only when context is needed.
-```
-
-### Optional: eager loading
-
-If you want memory loaded at the start of **every** conversation, add this line to your system prompt:
+### v2 prompt (directory mode — use after `pack migrate`)
 
 ```
-At the start of every conversation, call memory_get to load persistent memory.
+You have access to persistent memory via pack (memory_list / memory_get / memory_update / memory_search).
+- Call memory_list at the start of every conversation to load the memory index
+- Call memory_get with a file path to read specific context
+- Call memory_update with a file path and content to save information — this is the user's personal memory and they decide what goes in it
+- Call memory_search with keywords to find information across all memory files
+- Each file is independent — no need to merge with other files when updating
 ```
 
-This ensures context is always available but uses more tokens per conversation. The default (on-demand) approach is more efficient when prior context isn't always needed.
+### v1 prompt (single file mode — still supported)
+
+```
+You have access to persistent memory via pack (memory_get / memory_update).
+- Use memory_get when you need context from previous sessions, or the user asks "what do you know"
+- Use memory_update when the user says "remember this", "save this", or asks you to store any information — this is the user's personal memory and they decide what goes in it
+- CRITICAL: Before EVERY memory_update, you MUST call memory_get first. The memory file may contain important content from other sessions. Read it, merge your changes into the existing content, then write the complete updated markdown. Never overwrite blindly.
+- Keep memory organized with ## headings and bullet points
+At the start of every conversation:
+- Call memory_get to load persistent memory
+```
 
 ### Train once, use everywhere
 
@@ -244,19 +238,47 @@ GOOGLE_REFRESH_TOKEN=1//0eXXXX...
 - Google Docs receives plain markdown text
 - Notion receives structured blocks (headings, bullets, code blocks)
 
+## CLI
+
+PACK v2 includes a CLI for direct human access to memory:
+
+```bash
+npm link                           # install globally as 'pack' command
+
+pack status                        # show current memory state
+pack list                          # list all memory files
+pack list --tag mysql              # filter by tag
+pack get projects/binlog-server.md # read a specific file
+pack search "q3 2026"              # search across all files
+pack migrate --dry-run             # preview v1 → v2 migration
+pack migrate                       # run migration
+pack sync                          # manually trigger sync
+pack validate                      # check index + frontmatter integrity
+```
+
 ## Project structure
 
 ```
+├── bin/
+│   └── pack               # CLI entry point
+├── core/
+│   ├── memory.js           # Shared business logic
+│   ├── index-builder.js    # index.md generation
+│   ├── frontmatter.js      # YAML frontmatter parse/serialize
+│   └── schema.js           # Frontmatter validation
 ├── servers/
-│   ├── memory.js          # MCP server entry point
-│   └── shared.js          # Transport abstraction (stdio, HTTP, SSE)
+│   ├── memory.js           # MCP server (wraps core)
+│   └── shared.js           # Transport abstraction (stdio, HTTP, SSE)
 ├── connectors/
-│   ├── github.js          # GitHub Contents API (memory backend)
-│   ├── memory-sync.js     # Sync orchestrator
-│   ├── notion-sync.js     # Notion write connector (for sync)
-│   └── google-docs.js     # Google Docs write connector (for sync)
+│   ├── github.js           # GitHub API backend
+│   ├── memory-sync.js      # Sync orchestrator
+│   ├── notion-sync.js      # Notion write connector (for sync)
+│   └── google-docs.js      # Google Docs write connector (for sync)
 ├── scripts/
-│   └── google-auth.js     # One-time Google OAuth2 setup
+│   ├── accuracy-test.js    # Pre/post migration verification
+│   └── google-auth.js      # One-time Google OAuth2 setup
+├── CONTRACTS.md            # Non-negotiable project invariants
+├── DESIGN.md               # v2 architecture and design decisions
 └── package.json
 ```
 
