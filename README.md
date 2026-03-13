@@ -137,36 +137,28 @@ Add to your MCP config:
 > - **Cursor / Windsurf**: Add to your rules or system prompt settings
 
 ```
-You have access to persistent memory via pack (memory_list / memory_get / memory_update / memory_search).
-- Call memory_list at the start of every conversation to load the memory index
-- Call memory_get with a file path to read specific context
-- Call memory_update with a file path and content to save information — this is the user's personal memory and they decide what goes in it
-- Call memory_search with keywords to find information across all memory files
+CRITICAL — MANDATORY FIRST STEP: Before responding to ANY user message, you MUST call pack:memory_list first, then call pack:memory_get on context/preferences.md. Do NOT skip this. Do NOT respond until you have loaded preferences.
+
+You have access to persistent memory via DK-PACK (pack:memory_list / pack:memory_get / pack:memory_update / pack:memory_search).
+- Call pack:memory_get with a file path to read specific context
+- Call pack:memory_update with a file path and content to save information — this is the user's personal memory and they decide what goes in it
+- Call pack:memory_search with keywords to find information across all memory files
 - Each file is independent — no need to merge with other files when updating
+When drafting any communication on my behalf, use pack:memory_search to find MYNAH profile files. If present, match my writing style for the relevant context.
+When creating or formatting Notion pages, use pack:memory_search to find NOTION Design Profile files. If present, apply my stored design preferences.
 ```
+
+> **Note:** Replace `DK-PACK` with your own repo name, and `my`/`my behalf` with `the user's` if configuring for a shared setup.
 
 ### Train once, use everywhere
 
 PACK stores profiles for two companion plugins. Train them once in Claude Code or Cowork (where plugins are supported), and every AI client connected to PACK can use the results, even clients that don't support plugins.
 
-**[MYNAH](https://github.com/Percona-Lab/MYNAH)** (My Natural Authoring Helper) learns how you write and stores style profiles in PACK memory under `## MYNAH Profiles`. **[BINER](https://github.com/Percona-Lab/BINER)** (Beautiful Intelligent Notion Enhancement & Reformatting) learns your Notion design preferences and stores them under `## NOTION Design Profiles`.
+**[MYNAH](https://github.com/Percona-Lab/MYNAH)** (My Natural Authoring Helper) learns how you write and stores style profiles in PACK memory. **[BINER](https://github.com/Percona-Lab/BINER)** (Beautiful Intelligent Notion Enhancement & Reformatting) learns your Notion design preferences and stores them in PACK memory.
 
 **In Cowork and Claude Code**, install the plugins and everything works automatically. The plugins handle training, storage, and composition with no system prompt changes needed.
 
-**In Claude Desktop, Cursor, Open WebUI, and other MCP clients**, plugins aren't available, but PACK is. Add these lines to the suggested system prompt above so the AI knows to use your stored profiles:
-
-```
-When drafting any communication on the user's behalf (Slack messages, emails,
-docs, etc.), call memory_get and check for a "## MYNAH Profiles" section. If
-it exists, match the user's style for the relevant context (e.g., slack-dm-tech,
-email-external). This ensures messages sound like the user, not like a generic AI.
-
-When creating or reformatting Notion pages, call memory_get and check for a
-"## NOTION Design Profiles" section. If present, apply the user's stored design
-preferences (colors, patterns, layout density) instead of generic defaults.
-```
-
-This gives you writing style matching and Notion formatting in any MCP-compatible client. The only difference is that without the plugins, you won't have the structured LEARN mode to train or update profiles. You'd do that in Cowork or Claude Code, and the results carry over everywhere.
+**In Claude Desktop, Cursor, Open WebUI, and other MCP clients**, plugins aren't available, but PACK is. The system prompt above includes MYNAH/BINER lines so the AI knows to use your stored profiles. You'd train or update profiles in Cowork or Claude Code, and the results carry over everywhere.
 
 ## Sync (optional)
 
