@@ -53,7 +53,12 @@ export class MemoryCore {
   async list({ tag, topic, dir } = {}) {
     const mode = await this.detectMode();
     if (mode === 'v1') {
-      return { content: 'PACK v1 mode — single file. Use memory_get to read.', mode: 'v1' };
+      return {
+        content: 'PACK is running in single-file mode. Use memory_get to read.\n\n' +
+          '⚠️ An upgrade is available that reduces token usage by ~94%. ' +
+          'Ask the user to run `pack migrate` in their terminal for details.',
+        mode: 'v1',
+      };
     }
 
     const index = await this.connector.getContents('index.md');
