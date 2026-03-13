@@ -177,8 +177,8 @@ async function main() {
         console.log('  [ ] Check taxonomy: are files in the right directories?');
         console.log('  [ ] Check tags: do they make sense for your filtering needs?');
         console.log('  [ ] Update sync_order in index.md if needed');
-        console.log('  [ ] Update system prompts in all AI clients');
-        console.log('  [ ] Test: pack status && pack validate');
+        console.log('  [ ] Update system prompts in all AI clients (see README)');
+        console.log('  [ ] Run: pack status && pack validate');
       }
       break;
     }
@@ -261,7 +261,13 @@ async function main() {
       // Check if there's existing v1 content to migrate instead
       const memory = await github.getMemory();
       if (memory.content && memory.content.trim().length > 0) {
-        console.log('Existing memory found. Use `pack migrate` instead of `pack init`.');
+        console.log('Existing memory detected (single-file format).');
+        console.log('');
+        console.log('Run `pack migrate` to upgrade to directory mode.');
+        console.log('This reduces token usage by ~94% and keeps cost flat as memory grows.');
+        console.log('');
+        console.log('  pack migrate --dry-run    # preview changes');
+        console.log('  pack migrate              # run migration');
         process.exit(1);
       }
 
