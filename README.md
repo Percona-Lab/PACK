@@ -25,13 +25,23 @@ PACK also ships a CLI (`pack`) for direct human access to memory outside of agen
 
 ### 1. Create a memory repo
 
-Create a **private** GitHub repo named `ai-memory-yourname` (e.g. `ai-memory-dennis`, `ai-memory-sarah`). The first `memory_update` call creates the `MEMORY.md` file automatically.
+Create a **private** GitHub repo to store your memory. You can create it under your personal account or a GitHub organization — wherever you prefer.
 
-> **Privacy notice**: Your memory file will accumulate sensitive context over time — meeting notes, project details, personal preferences, etc. To protect your data:
+```bash
+# Personal account
+gh repo create ai-memory-yourname --private --clone=false
+
+# Or under an organization
+gh repo create your-org/ai-memory-yourname --private --clone=false
+```
+
+Replace `yourname` with your name (e.g. `ai-memory-dennis`, `ai-memory-sarah`).
+
+> **Privacy notice**: Your memory will accumulate sensitive context over time — meeting notes, project details, personal preferences, etc. To protect your data:
 >
 > 1. **Always create the repo as Private** — never public or internal.
-> 2. **If using a GitHub org, request that an admin restrict the repo to your account only** — by default, org owners and admins can see all repos, even private ones. Ask an admin to limit collaborator access to just you.
-> 3. **Do not store secrets** (passwords, API tokens, credentials) in your memory file. Treat it as sensitive but not secret.
+> 2. **If using a GitHub org**, request that an admin restrict the repo to your account only — by default, org owners and admins can see all repos, even private ones.
+> 3. **Do not store secrets** (passwords, API tokens, credentials) in your memory. Treat it as sensitive but not secret.
 
 Generate a [fine-grained personal access token](https://github.com/settings/tokens?type=beta) with:
 - **Repository access**: Only select your `ai-memory-yourname` repo
@@ -41,8 +51,9 @@ Generate a [fine-grained personal access token](https://github.com/settings/toke
 
 ```bash
 git clone https://github.com/Percona-Lab/PACK.git
-cd pack
+cd PACK
 npm install
+npm link    # optional: installs 'pack' CLI globally
 ```
 
 ### 3. Configure
@@ -51,12 +62,23 @@ Create `~/.pack.env` (outside the repo for security):
 
 ```bash
 GITHUB_TOKEN=ghp_...              # Fine-grained PAT
-GITHUB_OWNER=your-username        # GitHub user or org
+GITHUB_OWNER=your-username        # GitHub user or org that owns the memory repo
 GITHUB_REPO=ai-memory-yourname    # Your private memory repo
-GITHUB_MEMORY_PATH=MEMORY.md      # File path (default: MEMORY.md)
 ```
 
-### 4. Run
+### 4. Initialize
+
+Bootstrap the v2 directory structure in your memory repo:
+
+```bash
+pack init
+```
+
+This creates `index.md` and `context/general.md` in your repo. You're now in v2 (directory) mode.
+
+> **Existing v1 users**: If you already have a `MEMORY.md` file, use `pack migrate` instead of `pack init`. See [Migrating from v1](#migrating-from-v1).
+
+### 5. Run
 
 ```bash
 # Streamable HTTP (Open WebUI, modern MCP clients)
@@ -102,13 +124,13 @@ Add to your MCP config:
 
 ## System prompt (critical)
 
-> **Warning**: Without this system prompt, models may overwrite your entire memory file instead of merging changes. Always add this prompt to your AI client.
+> **Warning**: Without this system prompt, models won't use PACK's tools correctly. Always add this to your AI client.
 >
 > - **Open WebUI**: Settings > General > System Prompt
 > - **Claude Desktop**: Add to your project's custom instructions
 > - **Cursor / Windsurf**: Add to your rules or system prompt settings
 
-### v2 prompt (directory mode — use after `pack migrate`)
+### v2 prompt (recommended for new users and after `pack migrate`)
 
 ```
 You have access to persistent memory via pack (memory_list / memory_get / memory_update / memory_search).
@@ -153,6 +175,18 @@ preferences (colors, patterns, layout density) instead of generic defaults.
 ```
 
 This gives you writing style matching and Notion formatting in any MCP-compatible client. The only difference is that without the plugins, you won't have the structured LEARN mode to train or update profiles. You'd do that in Cowork or Claude Code, and the results carry over everywhere.
+
+## Migrating from v1
+
+If you have an existing v1 PACK (single `MEMORY.md` file), migrate to v2:
+
+```bash
+pack migrate --dry-run    # preview what will happen
+pack migrate              # run the migration
+pack validate             # verify everything is correct
+```
+
+Migration splits your `MEMORY.md` by `## ` headings into individual files organized by directory (`context/`, `projects/`, `profiles/`, `contacts/`). Your original file is preserved at `legacy/MEMORY.md`. Then update your system prompt to the v2 version above.
 
 ## Sync (optional)
 
@@ -245,6 +279,7 @@ PACK v2 includes a CLI for direct human access to memory:
 ```bash
 npm link                           # install globally as 'pack' command
 
+pack init                          # bootstrap v2 directory structure (new users)
 pack status                        # show current memory state
 pack list                          # list all memory files
 pack list --tag mysql              # filter by tag

@@ -87,7 +87,7 @@ await createMCPServer({
     },
     {
       name: 'memory_get',
-      description: 'Get persistent memory contents. In v2: pass a file path. Without path: returns all memory concatenated.',
+      description: 'Read a memory file by path. Without path: returns all memory concatenated.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -97,12 +97,12 @@ await createMCPServer({
     },
     {
       name: 'memory_update',
-      description: 'Write a memory file. In v2: pass a file path and content. Without path: saves to context/general.md.',
+      description: 'Write a memory file. Pass a file path and the full file content.',
       inputSchema: {
         type: 'object',
         properties: {
           path: { type: 'string', description: 'File path (e.g., "projects/binlog-server.md")' },
-          content: { type: 'string', description: 'Full file content (frontmatter + body for v2, or markdown for v1)' },
+          content: { type: 'string', description: 'Full file content (YAML frontmatter + markdown body)' },
           sha: { type: 'string', description: 'SHA for optimistic concurrency (required for existing files in v2)' },
           message: { type: 'string', description: 'Git commit message' },
         },

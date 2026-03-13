@@ -28,6 +28,7 @@ function usage() {
 PACK — Portable Agent Context Keeper
 
 Usage:
+  pack init                          # bootstrap v2 directory structure
   pack list [--tag TAG] [--dir DIR] [--format json]
   pack get <path> [--no-frontmatter] [--json]
   pack update <path> [--file FILE] [--message MSG]
@@ -247,6 +248,46 @@ async function main() {
           console.log(`Files:      ${dirs}`);
         }
       }
+      break;
+    }
+
+    case 'init': {
+      const mode = await core.detectMode();
+      if (mode === 'v2') {
+        console.log('Already in v2 mode. Nothing to do.');
+        break;
+      }
+
+      // Check if there's existing v1 content to migrate instead
+      const memory = await github.getMemory();
+      if (memory.content && memory.content.trim().length > 0) {
+        console.log('Existing v1 memory found. Use `pack migrate` instead of `pack init`.');
+        process.exit(1);
+      }
+
+      // Bootstrap empty v2 structure
+      const today = new Date().toISOString().slice(0, 10);
+      const { serialize } = await import('../core/frontmatter.js');
+      const { buildIndex } = await import('../core/index-builder.js');
+
+      const welcomeContent = serialize({
+        topic: 'general',
+        tags: ['general'],
+        created: today,
+        updated: today,
+        sync: true,
+      }, 'Welcome to PACK v2. Use memory_update to save information here.\n');
+
+      await github.putContents('context/general.md', welcomeContent, null, 'Initialize PACK v2');
+
+      const indexContent = buildIndex([{ path: 'context/general.md', content: welcomeContent }]);
+      await github.putContents('index.md', indexContent, null, 'Initialize PACK v2 index');
+
+      console.log('PACK v2 initialized.');
+      console.log('  Created: context/general.md');
+      console.log('  Created: index.md');
+      console.log('\nUse the v2 system prompt in your AI clients.');
+      console.log('Run `pack status` to verify.');
       break;
     }
 
