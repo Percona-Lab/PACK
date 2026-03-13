@@ -23,13 +23,11 @@ PACK also ships a CLI (`pack`) for direct human access to memory outside of agen
 
 PACK stores memory as a directory of small files instead of one large file. This matters because every token of memory loaded into a conversation costs money and uses up context window space.
 
-**Single-file approach (v1)**: Load the entire memory (~8,000+ tokens) at session start. Read it again before every write to merge changes. As memory grows, so does the cost of every session.
+**Single-file approach**: Load the entire memory (~8,000+ tokens) at session start. Read it again before every write to merge changes. As memory grows, so does the cost of every session.
 
-**Directory approach (v2)**: Load a lightweight index (~700 tokens) at session start. Read only the specific files you need (~350 tokens each). Write directly — no read-before-write merge required.
+**Directory approach (PACK)**: Load a lightweight index (~700 tokens) at session start. Read only the specific files you need (~350 tokens each). Write directly — no read-before-write merge required.
 
-For a typical session with one memory update, this reduces memory-related token usage by **~94%** (from ~17,000 tokens to ~1,000). The savings compound as memory grows — v2 cost stays flat regardless of total memory size.
-
-> **Upgrading from v1?** PACK v2 is fully backward compatible. Your existing single-file memory works without changes. Migrate when ready with `pack migrate`. See [Migrating from v1](#migrating-from-v1).
+For a typical session with one memory update, this reduces memory-related token usage by **~94%** (from ~17,000 tokens to ~1,000). The savings compound as memory grows — cost stays flat regardless of total memory size.
 
 ## Setup
 
@@ -39,13 +37,13 @@ Create a **private** GitHub repo to store your memory. You can create it under y
 
 ```bash
 # Personal account
-gh repo create ai-memory-yourname --private --clone=false
+gh repo create PACK-yourname --private --clone=false
 
 # Or under an organization
-gh repo create your-org/ai-memory-yourname --private --clone=false
+gh repo create your-org/PACK-yourname --private --clone=false
 ```
 
-Replace `yourname` with your name (e.g. `ai-memory-dennis`, `ai-memory-sarah`).
+Replace `yourname` with your name (e.g. `PACK-dennis`, `PACK-sarah`).
 
 > **Privacy notice**: Your memory will accumulate sensitive context over time — meeting notes, project details, personal preferences, etc. To protect your data:
 >
@@ -54,7 +52,7 @@ Replace `yourname` with your name (e.g. `ai-memory-dennis`, `ai-memory-sarah`).
 > 3. **Do not store secrets** (passwords, API tokens, credentials) in your memory. Treat it as sensitive but not secret.
 
 Generate a [fine-grained personal access token](https://github.com/settings/tokens?type=beta) with:
-- **Repository access**: Only select your `ai-memory-yourname` repo
+- **Repository access**: Only select your `PACK-yourname` repo
 - **Permissions**: Contents → Read and write
 
 ### 2. Install PACK
@@ -73,20 +71,18 @@ Create `~/.pack.env` (outside the repo for security):
 ```bash
 GITHUB_TOKEN=ghp_...              # Fine-grained PAT
 GITHUB_OWNER=your-username        # GitHub user or org that owns the memory repo
-GITHUB_REPO=ai-memory-yourname    # Your private memory repo
+GITHUB_REPO=PACK-yourname          # Your private memory repo
 ```
 
 ### 4. Initialize
 
-Bootstrap the v2 directory structure in your memory repo:
+Bootstrap the directory structure in your memory repo:
 
 ```bash
 pack init
 ```
 
-This creates `index.md` and `context/general.md` in your repo. You're now in v2 (directory) mode.
-
-> **Existing v1 users**: If you already have a `MEMORY.md` file, use `pack migrate` instead of `pack init`. See [Migrating from v1](#migrating-from-v1).
+This creates `index.md` and `context/general.md` in your repo.
 
 ### 5. Run
 
@@ -172,18 +168,6 @@ preferences (colors, patterns, layout density) instead of generic defaults.
 
 This gives you writing style matching and Notion formatting in any MCP-compatible client. The only difference is that without the plugins, you won't have the structured LEARN mode to train or update profiles. You'd do that in Cowork or Claude Code, and the results carry over everywhere.
 
-## Migrating from v1
-
-If you have an existing v1 PACK (single `MEMORY.md` file), migrate to v2:
-
-```bash
-pack migrate --dry-run    # preview what will happen
-pack migrate              # run the migration
-pack validate             # verify everything is correct
-```
-
-Migration splits your `MEMORY.md` by `## ` headings into individual files organized by directory (`context/`, `projects/`, `profiles/`, `contacts/`). Your original file is preserved at `legacy/MEMORY.md`. Then update your system prompt to the v2 version above.
-
 ## Sync (optional)
 
 After each `memory_update`, content can be automatically synced to external targets. Sync is 1-way (GitHub → targets), non-blocking, and failures never break the memory update.
@@ -211,7 +195,7 @@ The webhook receives a JSON payload:
   "event": "memory_update",
   "content": "# My Memory\n\n- Full markdown content...",
   "message": "Update memory",
-  "repo": "your-username/ai-memory-yourname",
+  "repo": "your-username/PACK-yourname",
   "sha": "abc123...",
   "commit_url": "https://github.com/...",
   "timestamp": "2026-03-02T12:00:00.000Z"
@@ -270,19 +254,17 @@ GOOGLE_REFRESH_TOKEN=1//0eXXXX...
 
 ## CLI
 
-PACK v2 includes a CLI for direct human access to memory:
+PACK includes a CLI for direct human access to memory:
 
 ```bash
 npm link                           # install globally as 'pack' command
 
-pack init                          # bootstrap v2 directory structure (new users)
+pack init                          # bootstrap directory structure (new users)
 pack status                        # show current memory state
 pack list                          # list all memory files
 pack list --tag mysql              # filter by tag
 pack get projects/binlog-server.md # read a specific file
 pack search "q3 2026"              # search across all files
-pack migrate --dry-run             # preview v1 → v2 migration
-pack migrate                       # run migration
 pack sync                          # manually trigger sync
 pack validate                      # check index + frontmatter integrity
 ```
@@ -309,7 +291,7 @@ pack validate                      # check index + frontmatter integrity
 │   ├── accuracy-test.js    # Pre/post migration verification
 │   └── google-auth.js      # One-time Google OAuth2 setup
 ├── CONTRACTS.md            # Non-negotiable project invariants
-├── DESIGN.md               # v2 architecture and design decisions
+├── DESIGN.md               # Architecture and design decisions
 └── package.json
 ```
 

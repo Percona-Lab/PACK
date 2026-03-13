@@ -28,7 +28,7 @@ function usage() {
 PACK — Portable Agent Context Keeper
 
 Usage:
-  pack init                          # bootstrap v2 directory structure
+  pack init                          # bootstrap directory structure
   pack list [--tag TAG] [--dir DIR] [--format json]
   pack get <path> [--no-frontmatter] [--json]
   pack update <path> [--file FILE] [--message MSG]
@@ -177,7 +177,7 @@ async function main() {
         console.log('  [ ] Check taxonomy: are files in the right directories?');
         console.log('  [ ] Check tags: do they make sense for your filtering needs?');
         console.log('  [ ] Update sync_order in index.md if needed');
-        console.log('  [ ] Update agent prompts to use v2 tool names');
+        console.log('  [ ] Update system prompts in all AI clients');
         console.log('  [ ] Test: pack status && pack validate');
       }
       break;
@@ -254,14 +254,14 @@ async function main() {
     case 'init': {
       const mode = await core.detectMode();
       if (mode === 'v2') {
-        console.log('Already in v2 mode. Nothing to do.');
+        console.log('Already initialized. Nothing to do.');
         break;
       }
 
       // Check if there's existing v1 content to migrate instead
       const memory = await github.getMemory();
       if (memory.content && memory.content.trim().length > 0) {
-        console.log('Existing v1 memory found. Use `pack migrate` instead of `pack init`.');
+        console.log('Existing memory found. Use `pack migrate` instead of `pack init`.');
         process.exit(1);
       }
 
@@ -276,17 +276,17 @@ async function main() {
         created: today,
         updated: today,
         sync: true,
-      }, 'Welcome to PACK v2. Use memory_update to save information here.\n');
+      }, 'Welcome to PACK. Use memory_update to save information here.\n');
 
-      await github.putContents('context/general.md', welcomeContent, null, 'Initialize PACK v2');
+      await github.putContents('context/general.md', welcomeContent, null, 'Initialize PACK');
 
       const indexContent = buildIndex([{ path: 'context/general.md', content: welcomeContent }]);
-      await github.putContents('index.md', indexContent, null, 'Initialize PACK v2 index');
+      await github.putContents('index.md', indexContent, null, 'Initialize PACK index');
 
-      console.log('PACK v2 initialized.');
+      console.log('PACK initialized.');
       console.log('  Created: context/general.md');
       console.log('  Created: index.md');
-      console.log('\nUse the v2 system prompt in your AI clients.');
+      console.log('\nAdd the system prompt to your AI clients (see README).');
       console.log('Run `pack status` to verify.');
       break;
     }
