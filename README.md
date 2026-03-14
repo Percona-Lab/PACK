@@ -367,7 +367,7 @@ NAPSAC is a good fit if you:
 - Want to share memory selectively with teammates
 - Don't need git history, CLI access, or webhook sync
 
-NAPSAC uses the same file path conventions as PACK, so memory content is portable between the two. See the [NAPSAC README](https://github.com/Percona-Lab/NAPSAC) or [product page](https://www.notion.so/323674d091f38175a405ed06fbf5ff4f) for the full comparison.
+NAPSAC uses the same file path conventions as PACK, so memory content is portable between the two. See the [NAPSAC README](https://github.com/Percona-Lab/NAPSAC) for the full comparison.
 
 ## License
 
