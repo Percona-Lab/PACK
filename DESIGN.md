@@ -606,21 +606,38 @@ All methods continue to use the GitHub Contents API. SHA tracking is per-file (n
 
 ---
 
-## Sync Layer Changes (memory-sync.js)
+## Sync Layer (memory-sync.js)
 
-### Current (v1)
-
-```
-read MEMORY.md --> push to Notion / Google Docs
-```
-
-### New (v2)
+### Single-Page Mode (default)
 
 ```
-read index.md sync_order --> read each file in order --> concat with dividers --> push to Notion / Google Docs
+memory_update --> getSyncContent() --> concat all files --> push to Notion / Google Docs
 ```
 
-The downstream connectors (`notion-sync.js`, `google-docs.js`) receive the same input as before: a single markdown string. No changes needed in those files.
+Google Docs and Notion single mode receive one markdown string. Contract C3 applies.
+
+### Multi-Page Mode (NOTION_SYNC_MODE=multi)
+
+```
+memory_update for context/preferences.md
+  --> update sub-page for context/preferences.md (Notion)
+  --> update index page with links (Notion)
+  --> section-replace in Full Export page (Notion, fallback: full rewrite)
+  --> push full concat to Google Docs (unchanged)
+```
+
+Multi-page Notion sync creates one sub-page per PACK file under the parent page (`NOTION_SYNC_PAGE_ID`). The parent page becomes an index with links. A "PACK Full Export (read-only)" page holds all memory concatenated for tools that need a single page.
+
+**Mapping**: `.notion-pages.json` in the GitHub repo maps PACK file paths to Notion page IDs. This file is version-controlled and auto-updated when new files are created.
+
+**Migration**: `pack migrate-notion` creates all sub-pages and the full export page. Idempotent -- skips files that already have pages. Required before multi mode works; PACK falls back to single mode if the mapping doesn't exist.
+
+**Per-file sync flow**:
+1. `memory_update` completes for a specific file
+2. Sync manager reads `.notion-pages.json` from GitHub
+3. Updates or creates the file's sub-page
+4. Rebuilds index page with links to all sub-pages
+5. Attempts section replacement in the full export page; falls back to full rewrite on failure
 
 ### Sync Output Format
 
@@ -640,6 +657,13 @@ Files are concatenated with section headers and dividers:
 ```
 
 Frontmatter is stripped from sync output to keep it clean for non-technical consumers (Gemini Gems, human readers).
+
+### Webhook Versioning
+
+The webhook payload format is controlled by `PACK_WEBHOOK_VERSION`:
+
+- **Unset** (default): Per-file content with `version: 2`, `file`, and `path` fields.
+- **`1`**: Full concatenated content. No `version`, `file`, or `path` fields. For legacy workflows that expect the whole memory blob.
 
 ---
 
@@ -765,6 +789,9 @@ Phases 2-5 can be done in a single Claude Code session. Phase 6 runs against you
 | 7 | `pack init` repo creation | Yes, create via GitHub API | `pack init` creates the private GitHub repo, scaffolds directory structure, and pushes initial commit. Lowers onboarding friction for new users. Falls back gracefully if repo already exists. |
 | 8 | v1 pathless memory_update in v2 mode | Route to `context/general.md` with deprecation warning | Soft degradation instead of hard rejection. Prevents write failures for agents using v1 prompts against v2 repos. |
 | 9 | Mode detection timing | Per-request with 60s cache | Handles mid-session migration. Cache invalidated on writes. Avoids redundant API calls while staying responsive to repo changes. |
+| 10 | Notion multi-page mapping storage | `.notion-pages.json` in GitHub repo | Version-controlled, accessible from any PACK instance, excluded from memory index (dotfile). Alternative was Notion page properties but that adds API complexity. |
+| 11 | Notion multi-page migration | Explicit `pack migrate-notion` command | No auto-migration during sync. Migration is previewable with `--dry-run`, idempotent, and resumes from partial failures. |
+| 12 | Webhook versioning | Keep current per-file format as default | No breaking change. `PACK_WEBHOOK_VERSION=1` opts into full concatenated content for legacy consumers. |
 
 ---
 
@@ -777,3 +804,4 @@ Phases 2-5 can be done in a single Claude Code session. Phase 6 runs against you
 | `local-git.js` connector | Full local-first connector using `simple-git` | `--local` flag in v2.0 |
 | Embedding search | Semantic search across memory files | Evaluate need based on file count growth |
 | Multi-repo support | Memory split across multiple repos | Evaluate need based on usage patterns |
+| Notion reverse sync | `memory_pull` to pull mobile edits from Notion back to GitHub | Multi-page Notion sync (implemented) |

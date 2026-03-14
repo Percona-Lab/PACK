@@ -62,3 +62,13 @@ Every `memory_update` (MCP or CLI) results in exactly one git commit with a mean
 ## C10: Index Consistency
 
 `index.md` is regenerated on every write operation. If `index.md` drifts from actual repo state (e.g., manual git operations), the next write auto-corrects it. `pack validate` detects and reports drift without modifying anything.
+
+## C11: Notion Multi-Page Sync Safety
+
+Multi-page Notion sync (`NOTION_SYNC_MODE=multi`) is opt-in and requires explicit migration via `pack migrate-notion`.
+
+- When `NOTION_SYNC_MODE=multi` and `.notion-pages.json` does not exist, PACK falls back to single-page sync with a warning. It never auto-creates sub-pages during normal sync.
+- `pack migrate-notion` is idempotent. It skips files that already have pages in the mapping and only creates missing ones. A partial failure writes the mapping so the next run resumes from where it left off.
+- The parent Notion page is only rewritten as an index after all sub-pages are confirmed created.
+- The "PACK Full Export (read-only)" page attempts section replacement first. If the heading is not found or block manipulation fails, it falls back to a full page rewrite. It never leaves the page in a partial state.
+- Google Docs sync is unaffected by Notion sync mode. It always receives the full concatenated memory.

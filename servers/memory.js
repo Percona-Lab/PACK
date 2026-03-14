@@ -5,6 +5,7 @@ import { createMCPServer } from './shared.js';
 import { GitHubConnector } from '../connectors/github.js';
 import { MemorySyncManager } from '../connectors/memory-sync.js';
 import { MemoryCore } from '../core/memory.js';
+import { parse } from '../core/frontmatter.js';
 
 const github = new GitHubConnector(
   process.env.GITHUB_TOKEN,
@@ -18,24 +19,41 @@ const core = new MemoryCore(github);
 // Built-in sync (Google Docs, Notion)
 const sync = new MemorySyncManager();
 await sync.init();
+sync.setGitHubConnector(github);
 if (sync.enabled) {
-  console.error(`[pack] Sync targets: ${sync.targets.join(', ')}`);
+  const modeLabel = sync.notionSyncMode === 'multi' ? 'notion (multi-page)' : sync.targets.join(', ');
+  console.error(`[pack] Sync targets: ${modeLabel}`);
 }
 
 // Webhook sync (n8n, Zapier, etc.)
 const webhookUrl = process.env.PACK_WEBHOOK_URL;
+const webhookVersion = process.env.PACK_WEBHOOK_VERSION;
 if (webhookUrl) {
   console.error(`[pack] Webhook: ${webhookUrl}`);
 }
 
-async function fireWebhook(path, content, message, commitResult) {
+async function fireWebhook(path, content, message, commitResult, fullContent) {
   if (!webhookUrl) return;
   try {
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    let payload;
+
+    if (webhookVersion === '1') {
+      // v1 format: full concatenated content, no path or version field
+      payload = {
         event: 'memory_update',
+        content: fullContent || content,
+        message: message || 'Update memory',
+        repo: `${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}`,
+        sha: commitResult.sha,
+        commit_url: commitResult.commit_url,
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      // Default: per-file content with version field (current behavior)
+      payload = {
+        event: 'memory_update',
+        version: 2,
+        file: path || null,
         path: path || null,
         content,
         message: message || 'Update memory',
@@ -43,8 +61,13 @@ async function fireWebhook(path, content, message, commitResult) {
         sha: commitResult.sha,
         commit_url: commitResult.commit_url,
         timestamp: new Date().toISOString(),
-        version: path ? 2 : 1,
-      }),
+      };
+    }
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
     console.error('[webhook] ok');
   } catch (err) {
@@ -54,14 +77,32 @@ async function fireWebhook(path, content, message, commitResult) {
 
 async function fireSyncAndWebhook(path, content, message, result) {
   const tasks = [];
+
+  // Get full concatenated content (needed for Google Docs, v1 webhook, full export page)
+  const syncContent = sync.enabled || webhookVersion === '1'
+    ? await core.getSyncContent()
+    : null;
+
   if (sync.enabled) {
-    // For v2, sync the full concatenated content, not just the updated file
-    const syncContent = await core.getSyncContent();
-    tasks.push(sync.sync(syncContent));
+    // Build per-file update info for multi-page Notion sync
+    let fileUpdate = null;
+    if (sync.notionSyncMode === 'multi' && path) {
+      const { frontmatter, body } = parse(content);
+      const allFiles = await core.getFilesWithMeta();
+      fileUpdate = {
+        path,
+        content: body.trim(),
+        topic: frontmatter.topic || path.replace(/\.md$/, '').split('/').pop(),
+        allFiles,
+      };
+    }
+    tasks.push(sync.sync(syncContent, fileUpdate));
   }
+
   if (webhookUrl) {
-    tasks.push(fireWebhook(path, content, message, result));
+    tasks.push(fireWebhook(path, content, message, result, syncContent));
   }
+
   if (tasks.length) Promise.allSettled(tasks).catch(() => {});
 }
 
@@ -136,7 +177,7 @@ await createMCPServer({
           sha: args.sha,
           message: args.message,
         });
-        // Fire-and-forget sync + webhook (Contract C3: sync receives single markdown string)
+        // Fire-and-forget sync + webhook
         fireSyncAndWebhook(args.path, args.content, args.message, result);
         return result;
       }

@@ -411,6 +411,32 @@ export class MemoryCore {
 
   // ── sync helper ────────────────────────────────────────────────
 
+  /**
+   * Get all memory files with metadata for multi-page sync.
+   * @returns {Array<{ path, content, topic, tags, updated }>}
+   */
+  async getFilesWithMeta() {
+    const tree = await this.connector.getTree();
+    const mdFiles = tree.filter(f => this._isV2MemoryFile(f));
+    const files = [];
+
+    for (const f of mdFiles) {
+      const data = await this.connector.getContents(f.path);
+      if (!data) continue;
+      const { frontmatter, body } = parse(data.content);
+      if (frontmatter.sync === false) continue;
+      files.push({
+        path: f.path,
+        content: body.trim(),
+        topic: frontmatter.topic || f.path.replace(/\.md$/, '').split('/').pop(),
+        tags: Array.isArray(frontmatter.tags) ? frontmatter.tags.join(', ') : '',
+        updated: frontmatter.updated || 'unknown',
+      });
+    }
+
+    return files;
+  }
+
   async getSyncContent() {
     const mode = await this.detectMode();
     if (mode === 'v1') {

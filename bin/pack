@@ -34,6 +34,7 @@ Usage:
   pack update <path> [--file FILE] [--message MSG]
   pack search <query> [--format json]
   pack migrate [--dry-run] [--yes]
+  pack migrate-notion [--dry-run]
   pack sync [--target TARGET] [--dry-run]
   pack validate
   pack status
@@ -183,9 +184,66 @@ async function main() {
       break;
     }
 
+    case 'migrate-notion': {
+      const dryRun = hasFlag('dry-run');
+
+      if (!process.env.NOTION_TOKEN || !process.env.NOTION_SYNC_PAGE_ID) {
+        console.error('Error: NOTION_TOKEN and NOTION_SYNC_PAGE_ID must be set in ~/.pack.env');
+        process.exit(1);
+      }
+
+      const modeCheck = await core.detectMode();
+      if (modeCheck === 'v1') {
+        console.error('Error: Run `pack migrate` first to switch to directory mode.');
+        process.exit(1);
+      }
+
+      const syncManager = new MemorySyncManager();
+      await syncManager.init();
+      syncManager.setGitHubConnector(github);
+
+      // Gather all files with metadata
+      const files = await core.getFilesWithMeta();
+      const fullContent = await core.getSyncContent();
+
+      console.log(`\nNotion migration ${dryRun ? 'plan' : 'starting'}: ${files.length} files\n`);
+
+      const result = await syncManager.migrateNotion(files, fullContent, { dryRun });
+
+      if (dryRun) {
+        if (result.created.length) {
+          console.log(`  Would create ${result.created.length} pages:`);
+          for (const p of result.created) console.log(`    + ${p}`);
+        }
+        if (result.skipped.length) {
+          console.log(`  Would skip ${result.skipped.length} existing pages:`);
+          for (const p of result.skipped) console.log(`    = ${p}`);
+        }
+        if (!result.fullExportPageId) {
+          console.log('  Would create: PACK Full Export (read-only)');
+        }
+        console.log('\nRun without --dry-run to execute.');
+      } else {
+        console.log(`  Created: ${result.created.length} pages`);
+        if (result.created.length) {
+          for (const p of result.created) console.log(`    + ${p}`);
+        }
+        console.log(`  Skipped: ${result.skipped.length} existing pages`);
+        console.log(`  Full export page: ${result.fullExportPageId ? 'ok' : 'created'}`);
+        console.log(`  Index page: updated`);
+        console.log('\nNotion migration complete.');
+        console.log('\nNext steps:');
+        console.log('  1. Set NOTION_SYNC_MODE=multi in ~/.pack.env');
+        console.log('  2. Restart your MCP server (quit and reopen your AI client)');
+        console.log('  3. Verify pages in Notion');
+      }
+      break;
+    }
+
     case 'sync': {
       const syncManager = new MemorySyncManager();
       await syncManager.init();
+      syncManager.setGitHubConnector(github);
 
       if (!syncManager.enabled) {
         console.log('No sync targets configured.');
@@ -197,6 +255,9 @@ async function main() {
 
       if (hasFlag('dry-run')) {
         console.log(`Would sync ${content.length} chars to: ${syncManager.targets.join(', ')}`);
+        if (syncManager.notionSyncMode === 'multi') {
+          console.log('  Notion mode: multi-page');
+        }
         console.log('\n--- Preview (first 500 chars) ---');
         console.log(content.slice(0, 500));
         break;

@@ -170,41 +170,14 @@ This makes your memory portable across AI tools beyond MCP — sync to Google Do
 
 PACK supports two sync methods that can be used together, separately, or not at all:
 
-- **Webhook** — POST memory content to any URL (n8n, Zapier, Make, custom endpoint). Most flexible — add any number of targets without changing PACK code.
-- **Built-in connectors** — Direct sync to Notion and Google Docs. No external infra needed.
+- **Built-in connectors** -- Direct sync to Notion and Google Docs. No external infra needed. Notion supports multi-page sync for mobile reads.
+- **Webhook** -- POST memory content to any URL (n8n, Zapier, Make, custom endpoint). Most flexible -- add any number of targets without changing PACK code.
 
-### Webhook sync (recommended)
+### Choosing a sync method
 
-Set a webhook URL and PACK will POST the full memory content after every update:
-
-```bash
-# Add to ~/.pack.env
-PACK_WEBHOOK_URL=https://your-n8n.example.com/webhook/pack-sync
-```
-
-The webhook receives a JSON payload:
-
-```json
-{
-  "event": "memory_update",
-  "content": "# My Memory\n\n- Full markdown content...",
-  "message": "Update memory",
-  "repo": "your-username/PACK-yourname",
-  "sha": "abc123...",
-  "commit_url": "https://github.com/...",
-  "timestamp": "2026-03-02T12:00:00.000Z"
-}
-```
-
-With a workflow tool like [n8n](https://n8n.io/), you can fan out to any number of targets — Notion, Google Docs, Confluence, Slack, email — without touching PACK code. Example n8n workflow:
-
-```
-Webhook trigger → Switch node
-  ├─ Notion: update page with content
-  ├─ Google Docs: replace document body
-  ├─ Slack: post to #memory-updates channel
-  └─ S3: archive a timestamped backup
-```
+- **Want mobile read access?** Enable the built-in Notion connector with `NOTION_SYNC_MODE=multi`. This is the only way to get structured mobile reads.
+- **Want to fan out to multiple targets (Slack, S3, Confluence, etc.)?** Use webhook sync.
+- **Want both?** Use them together. The built-in connector handles Notion structure for mobile reads. The webhook handles everything else. When using both, your webhook workflow should skip Notion (PACK handles it directly) to avoid conflicts.
 
 ### Notion sync (built-in)
 
@@ -212,14 +185,28 @@ Add to `~/.pack.env`:
 
 ```bash
 NOTION_TOKEN=ntn_...
-NOTION_SYNC_PAGE_ID=abcdef1234567890  # Page to overwrite with memory content
+NOTION_SYNC_PAGE_ID=abcdef1234567890  # Parent page for memory sync
+NOTION_SYNC_MODE=single               # single (default) or multi
 ```
 
-Create a **dedicated, private** Notion page for this — its content will be replaced on each update. Do not use a page that is shared with others unless you want them to see your memory.
+Create a **dedicated, private** Notion page for this. Do not use a page that is shared with others unless you want them to see your memory.
+
+**Single mode** (default): Replaces the page content with all memory concatenated on each update. Simple, no setup beyond the env vars above.
+
+**Multi mode**: Creates one Notion sub-page per PACK file under the parent page. The parent page becomes an index with links to each sub-page. A "PACK Full Export (read-only)" page is also created for tools that need all memory in one page. On each `memory_update`, only the changed file's sub-page is updated -- not all pages.
+
+To enable multi mode:
+
+```bash
+pack migrate-notion --dry-run    # preview what pages will be created
+pack migrate-notion              # create sub-pages in Notion
+```
+
+Then set `NOTION_SYNC_MODE=multi` in `~/.pack.env` and restart your MCP server.
 
 ### Google Docs sync (built-in)
 
-**Step 1:** Create OAuth credentials at [Google Cloud Console](https://console.cloud.google.com/) → enable Google Docs API → create OAuth client ID (Desktop app).
+**Step 1:** Create OAuth credentials at [Google Cloud Console](https://console.cloud.google.com/) -- enable Google Docs API -- create OAuth client ID (Desktop app).
 
 **Step 2:** Get a refresh token:
 
@@ -236,7 +223,46 @@ GOOGLE_CLIENT_SECRET=GOCSPX-...
 GOOGLE_REFRESH_TOKEN=1//0eXXXX...
 ```
 
-> **Privacy reminder**: Keep the Google Doc restricted to your account only. Do not share the document link — anyone with access can read your full memory.
+> **Privacy reminder**: Keep the Google Doc restricted to your account only. Do not share the document link -- anyone with access can read your full memory.
+
+Google Docs always receives the full concatenated memory as plain markdown, regardless of Notion sync mode.
+
+### Webhook sync
+
+Set a webhook URL and PACK will POST memory content after every update:
+
+```bash
+# Add to ~/.pack.env
+PACK_WEBHOOK_URL=https://your-n8n.example.com/webhook/pack-sync
+```
+
+The webhook receives a JSON payload with the updated file:
+
+```json
+{
+  "event": "memory_update",
+  "version": 2,
+  "file": "context/preferences.md",
+  "path": "context/preferences.md",
+  "content": "--- frontmatter + body ---",
+  "message": "Update context/preferences.md",
+  "repo": "your-username/PACK-yourname",
+  "sha": "abc123...",
+  "commit_url": "https://github.com/...",
+  "timestamp": "2026-03-14T12:00:00.000Z"
+}
+```
+
+To receive the full concatenated memory instead of per-file content (for legacy workflows or full-text indexing), set `PACK_WEBHOOK_VERSION=1` in `~/.pack.env`.
+
+With a workflow tool like [n8n](https://n8n.io/), you can fan out to any number of targets -- Google Docs, Confluence, Slack, email -- without touching PACK code. Example n8n workflow:
+
+```
+Webhook trigger → Switch node
+  ├─ Google Docs: replace document body
+  ├─ Slack: post to #memory-updates channel
+  └─ S3: archive a timestamped backup
+```
 
 ### Sync behavior
 
@@ -244,7 +270,46 @@ GOOGLE_REFRESH_TOKEN=1//0eXXXX...
 - Webhook and built-in connectors run in parallel after GitHub write succeeds
 - Failures are logged to stderr but never affect the `memory_update` response
 - Google Docs receives plain markdown text
-- Notion receives structured blocks (headings, bullets, code blocks)
+- Notion single mode: replaces one page with structured blocks
+- Notion multi mode: updates only the changed file's sub-page, refreshes index
+
+## Mobile reads
+
+Multi-page Notion sync enables mobile AI clients (Claude.ai, ChatGPT, Gemini) to read your PACK memory through Notion, even without MCP access.
+
+**How it works.** When `NOTION_SYNC_MODE=multi`, PACK mirrors each memory file as a Notion sub-page. The parent page serves as an index (~700 tokens). A mobile AI client can fetch just the index and then pull specific sub-pages by relevance -- the same pattern desktop PACK uses with `memory_list` followed by `memory_get`.
+
+**Read-only.** Mobile access through Notion is read-only. Memory writes require a desktop PACK session with MCP. The system prompt below handles this gracefully -- if PACK tools are unavailable, it falls back to reading from Notion.
+
+**Three-tier read strategy.** The mobile system prompt tries each level in order:
+
+1. **PACK tools** (desktop) -- fastest, uses `memory_list` and `memory_get` directly
+2. **Notion sub-pages** (mobile) -- reads the index page, then specific sub-pages as needed. Falls back to the "PACK Full Export (read-only)" page if a sub-page fetch fails.
+3. **Native memory** (last resort) -- only if both PACK and Notion are unavailable. States clearly that context may be incomplete.
+
+### Mobile system prompt (optional)
+
+Use this prompt instead of the default when you have Notion sync enabled with `NOTION_SYNC_MODE=multi`:
+
+```
+CRITICAL -- MANDATORY FIRST STEP: Before responding to ANY user message, you MUST attempt memory access in this exact order. Do NOT respond until you have tried.
+
+1. PACK (desktop): Call pack:memory_list first, then pack:memory_get on context/preferences.md.
+2. Notion fallback (mobile or PACK unavailable): If PACK tools fail or are not available, fetch the PACK index from Notion page [NOTION_SYNC_PAGE_ID]. Read specific files from linked sub-pages as needed. If a sub-page fetch fails, fall back to the "PACK Full Export (read-only)" page under the same parent.
+3. Native memory fallback (Notion also unavailable): ONLY if both PACK and Notion fail, fall back to the AI client's built-in memory. State clearly at the start of your response: "Working from native memory only -- context may be incomplete."
+
+Do NOT skip to native memory out of convenience. Do NOT respond before attempting steps 1 and 2. Try each level in order and move to the next ONLY on failure.
+
+You have access to persistent memory via PACK (pack:memory_list / pack:memory_get / pack:memory_update / pack:memory_search).
+- Call pack:memory_get with a file path to read specific context
+- Call pack:memory_update with a file path and content to save information -- this is the user's personal memory and they decide what goes in it
+- Call pack:memory_search with keywords to find information across all memory files
+- Each file is independent -- no need to merge with other files when updating
+When drafting any communication on my behalf, use pack:memory_search to find MYNAH profile files. If present, match my writing style for the relevant context.
+When creating or formatting Notion pages, use pack:memory_search to find NOTION Design Profile files. If present, apply my stored design preferences.
+```
+
+> **Note:** Replace `[NOTION_SYNC_PAGE_ID]` with your actual Notion page URL so the AI client can fetch it.
 
 ## CLI
 
@@ -260,6 +325,8 @@ pack list --tag mysql              # filter by tag
 pack get projects/binlog-server.md # read a specific file
 pack search "q3 2026"              # search across all files
 pack sync                          # manually trigger sync
+pack migrate-notion --dry-run      # preview Notion multi-page migration
+pack migrate-notion                # create Notion sub-pages
 pack validate                      # check index + frontmatter integrity
 ```
 
