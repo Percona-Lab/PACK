@@ -21,13 +21,15 @@ PACK also ships a CLI (`pack`) for direct human access to memory outside of agen
 
 ## Why directory mode
 
-PACK stores memory as a directory of small files instead of one large file. This matters because every token of memory loaded into a conversation costs money and uses up context window space.
+PACK stores memory as a directory of small files instead of one large file. This matters for four reasons:
 
-**Single-file approach**: Load the entire memory (~8,000+ tokens) at session start. Read it again before every write to merge changes. As memory grows, so does the cost of every session.
+**Faster load times.** Loading a ~700 token index is meaningfully faster than loading ~8,000+ tokens from a monolithic file. The MCP round-trip to GitHub is the bottleneck, not context window capacity. Single-file mode also required re-reading the full file before every write to merge changes, adding slow round-trips throughout the session. Directory mode loads the index once and writes directly.
 
-**Directory approach (PACK)**: Load a lightweight index (~700 tokens) at session start. Read only the specific files you need (~350 tokens each). Write directly — no read-before-write merge required.
+**Write safety.** In single-file mode, every update required a full `memory_get` first so the model could merge new content into existing content. That added latency and created merge-corruption risk where the model accidentally dropped sections. Directory mode writes to a specific file with no merge step.
 
-For a typical session with one memory update, this reduces memory-related token usage by **~94%** (from ~17,000 tokens to ~1,000). The savings compound as memory grows — cost stays flat regardless of total memory size.
+**Structured retrieval.** YAML frontmatter on each file enables `memory_search` to find files by metadata (tags, topics), not just content matching. You can scope what gets loaded by relevance instead of loading everything and hoping the model finds the right detail.
+
+**Token efficiency.** For a typical session with one memory update, directory mode reduces memory-related token usage by ~94% (from ~17,000 tokens to ~1,000 vs single-file mode). The savings compound as memory grows – cost stays flat regardless of total memory size.
 
 ## Setup
 
@@ -133,13 +135,13 @@ Add to your MCP config:
 > **Warning**: Without this system prompt, models won't use PACK's tools correctly. Always add this to your AI client.
 >
 > - **Open WebUI**: Settings > General > System Prompt
-> - **Claude Desktop**: Add to your project's custom instructions
+> - **Claude Desktop**: Add to your project's custom instructions (this is where system prompts go in Claude Desktop)
 > - **Cursor / Windsurf**: Add to your rules or system prompt settings
 
 ```
 CRITICAL — MANDATORY FIRST STEP: Before responding to ANY user message, you MUST call pack:memory_list first, then call pack:memory_get on context/preferences.md. Do NOT skip this. Do NOT respond until you have loaded preferences.
 
-You have access to persistent memory via DK-PACK (pack:memory_list / pack:memory_get / pack:memory_update / pack:memory_search).
+You have access to persistent memory via PACK (pack:memory_list / pack:memory_get / pack:memory_update / pack:memory_search).
 - Call pack:memory_get with a file path to read specific context
 - Call pack:memory_update with a file path and content to save information — this is the user's personal memory and they decide what goes in it
 - Call pack:memory_search with keywords to find information across all memory files
@@ -148,7 +150,7 @@ When drafting any communication on my behalf, use pack:memory_search to find MYN
 When creating or formatting Notion pages, use pack:memory_search to find NOTION Design Profile files. If present, apply my stored design preferences.
 ```
 
-> **Note:** Replace `DK-PACK` with your own repo name, and `my`/`my behalf` with `the user's` if configuring for a shared setup.
+> **Note:** Replace `my`/`my behalf` with `the user's` if configuring for a shared setup. The `pack:` prefix matches the MCP server name in your client config.
 
 ### Train once, use everywhere
 
