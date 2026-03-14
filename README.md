@@ -356,6 +356,19 @@ pack validate                      # check index + frontmatter integrity
 └── package.json
 ```
 
+## Looking for something simpler?
+
+**[NAPSAC](https://github.com/Percona-Lab/NAPSAC)** (Notion Agent Persistent Store for Accessible Context) is PACK's lightweight sibling — persistent AI memory backed entirely by Notion. Install the plugin in Cowork or Claude Code for validated naming and guaranteed index regeneration, or use the system prompt fallback for Claude mobile, ChatGPT, Cursor, and VS Code.
+
+NAPSAC is a good fit if you:
+- Want persistent memory with zero setup
+- Primarily use Cowork, Claude, or ChatGPT
+- Want to read and write memory from any device including mobile
+- Want to share memory selectively with teammates
+- Don't need git history, CLI access, or webhook sync
+
+NAPSAC uses the same file path conventions as PACK, so memory content is portable between the two. See the [NAPSAC README](https://github.com/Percona-Lab/NAPSAC) or [product page](https://www.notion.so/323674d091f38175a405ed06fbf5ff4f) for the full comparison.
+
 ## License
 
 MIT
